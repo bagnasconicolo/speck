@@ -71,6 +71,12 @@
       <p>
         <strong>SPECK</strong> nasce come piattaforma **open‑source** dedicata alla <em>didattica della spettrometria</em> nelle scuole secondarie e nei laboratori universitari. L’obiettivo è fornire a docenti e studenti uno strumento leggero, accessibile da browser e compatibile con gli spettrometri didattici più diffusi, senza rinunciare a funzioni avanzate tipiche dei software professionali.
       </p>
+      <p>
+        Il progetto vuole stimolare l’apprendimento <em>hands‑on</em> di ottica e fisica
+        moderna: dall’identificazione di elementi chimici tramite spettri di emissione,
+        fino allo studio di fenomeni di fluorescenza e assorbimento. Tutto senza dover
+        installare software proprietari o costosi.
+      </p>
     </section>
 
     <section>
@@ -81,27 +87,34 @@
         <li>Permette di visualizzare più spettri insieme e confrontarli in tempo reale.</li>
         <li>La simulazione CCD a colori facilita la comprensione della corrispondenza λ → colore percepito.</li>
         <li>Gli script Python consentono di preparare dataset e materiali di laboratorio in pochi secondi.</li>
+        <li>Funziona offline: basta scaricare la cartella ed aprire <code>index.html</code> — perfetto per laboratori senza Wi‑Fi.</li>
+        <li>Inclusivo: interfaccia ad alto contrasto e pronta per screen‑reader.</li>
+        <li>Compatibile con Chromebook e tablet grazie a JavaScript puro.</li>
       </ul>
     </section>
 
     <section>
       <h2>Funzionalità principali</h2>
       <ul>
-        <li>Viewer interattivo di spettri (<code>.lab</code>, <code>.csv</code>) con soglia dinamica.</li>
-        <li>Simulazione CCD a colori basata su mappatura λ→RGB.</li>
-        <li>Galleria automatica con miniature colori/CCD.</li>
-        <li>Conversione batch <code>.lab → .csv + PDF</code> via script&nbsp;Python.</li>
-        <li>Supporto a serie multiple con selezione o rinomina interattiva.</li>
+        <li>Viewer interattivo (<code>.lab</code>, <code>.csv</code>) con soglia dinamica e scala Y lineare/log.</li>
+        <li>Zoom &amp; pan multi‑asse (mouse wheel, pinch, drag) tramite <code>chartjs‑plugin‑zoom</code>.</li>
+        <li>Opacità regolabile e color‑picker per ogni curva; normalizzazione one‑click.</li>
+        <li>Simulazione CCD in overlay con etichette on‑hover.</li>
+        <li>Galleria automatica con miniature a colori e link deep‑linking al viewer.</li>
+        <li>Batch converter <code>.lab → .csv + PDF</code> (Python) e titoli auto‑generati.</li>
+        <li>Selezione / rinomina serie multiple e download CSV singolo dal browser.</li>
       </ul>
     </section>
 
     <section>
       <h2>Roadmap</h2>
       <ul>
-        <li>Integrazione di linee di emissione note per il riconoscimento automatico.</li>
-        <li>Modalità dark/light configurabile.</li>
-        <li>Salvataggio preset utente in LocalStorage.</li>
-        <li>Export PNG del grafico e CSV filtrato direttamente dal browser.</li>
+        <li>Preset e workspace in LocalStorage con sincronizzazione (import/export JSON).</li>
+        <li>Tema light/dark automatico (media‑query) con override manuale.</li>
+        <li>Overlay linee di emissione (Na, Hg, H‑alpha, ecc.) caricabile da file CSV personalizzato.</li>
+        <li>Esportazione PNG/SVG dei grafici e snapshot CCD.</li>
+        <li>Drag‑and‑drop e clipboard paste di CSV esterni.</li>
+        <li>Integrazione WebSerial per acquisizione diretta da spettrometri USB compatibili.</li>
       </ul>
     </section>
 
@@ -117,12 +130,29 @@
       <ul>
         <li>Chart.js – MIT License</li>
         <li>Tailwind CSS (opzionale) – MIT License</li>
+        <li>chartjs-plugin-zoom – MIT License</li>
+        <li>FileSaver.js – MIT License</li>
       </ul>
     </section>
   </main>
 
+  <section>
+    <h2>Come contribuire</h2>
+    <p>
+      Le pull‑request sono benvenute! Apri una issue su GitHub per bug, idee o
+      per segnalare spettri di esempio.<br>
+      <strong>Repository:</strong>
+      <a href="https://github.com/nicolo-bagnasco/speck" target="_blank">github.com/nicolo‑bagnasco/speck</a>
+    </p>
+    <p>
+      Se sei un docente e vuoi condividere materiale didattico (slide, worksheet,
+      spettri interessanti) inviaci un <em>pull</em> nella cartella
+      <code>resources/</code>.
+    </p>
+  </section>
+
   <footer>
-    © 2025 SPECK Project. Tutti i diritti riservati.
+    © 2025–2026 SPECK Project. Rilasciato con licenza MIT.
   </footer>
 </body>
 </html>
