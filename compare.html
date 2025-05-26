@@ -18,14 +18,21 @@
 </head>
 <body>
   <div id="topBar">
-    <input type="file" id="picker" multiple accept=".csv" style="display:none">
-    <label for="picker">Aggiungi CSV…</label>
+    <label for="picker" style="font-weight:bold;color:#1abc9c">Aggiungi spettro:</label>
+    <select id="picker" style="padding:4px 8px;background:#222;color:#ecf0f1;border:1px solid #555;">
+      <option value="" disabled selected>— seleziona —</option>
+    </select>
     <div id="chips"></div>
   </div>
 
   <div id="chartWrap"><canvas id="cmpChart"></canvas></div>
 
 <script>
+// === CONFIG ===
+const DATA_DIR  = 'csv_out';
+const LIST_FILE = 'titoli.json';
+// ==============
+
 const colours=['#e74c3c','#3498db','#1abc9c','#f1c40f','#9b59b6','#e67e22','#2ecc71','#8e44ad'];
 let datasets=[];
 const chart=new Chart(document.getElementById('cmpChart').getContext('2d'),{
@@ -37,18 +44,43 @@ const chart=new Chart(document.getElementById('cmpChart').getContext('2d'),{
     plugins:{legend:{position:'bottom'}}}
 });
 
-document.getElementById('picker').addEventListener('change',async e=>{
-  for(const file of e.target.files){
-    const txt=await file.text();
-    const vec=parseCSV(txt);
-    if(!vec) continue;
-    addDataset(file.name,vec);
+(async function loadList(){
+  try{
+    const res = await fetch(`${DATA_DIR}/${LIST_FILE}`);
+    if(!res.ok) throw new Error();
+    const map = await res.json();
+    populatePicker(map);
+  }catch{
+    const dir = await (await fetch(`${DATA_DIR}/`)).text();
+    const files=[...dir.matchAll(/href=\"([^"]+\\.csv)\"/gi)].map(m=>decodeURIComponent(m[1]));
+    const map = Object.fromEntries(files.map(f=>[f,f]));
+    populatePicker(map);
   }
-  e.target.value='';
+})();
+
+function populatePicker(obj){
+  const sel=document.getElementById('picker');
+  Object.entries(obj)
+        .filter(([f])=>f.toLowerCase().endsWith('.csv'))
+        .forEach(([file,title])=>{
+          const opt=document.createElement('option');
+          opt.value=file; opt.textContent=title||file;
+          sel.appendChild(opt);
+        });
+}
+
+document.getElementById('picker').addEventListener('change',async e=>{
+  const file=e.target.value;
+  if(!file) return;
+  if(datasets.some(d=>d.label===file)) return; // già caricato
+  const txt=await (await fetch(`${DATA_DIR}/${file}`)).text();
+  const vec=parseCSV(txt);
+  if(vec) addDataset(file,vec);
+  e.target.selectedIndex=0;   // reset menu
 });
 
 function parseCSV(text){
-  const lines=text.trim().split(/\\r?\\n/);
+  const lines=text.trim().split(/\r?\n/);
   if(lines.length<2) return null;
   const headers=lines[0].split(',').map(h=>h.trim());
   const store=Object.fromEntries(headers.map(h=>[h,[]]));
@@ -60,12 +92,13 @@ function parseCSV(text){
 }
 
 function addDataset(name,vec){
-  const wlKey=Object.keys(vec)[0];
+  if(!vec) return;
+  const wlKey = Object.keys(vec)[0];
   const yKey =Object.keys(vec)[1]||wlKey;
   const xs=vec[wlKey], ys=vec[yKey];
   const color=colours[datasets.length%colours.length];
   datasets.push({
-    label:name,
+    label: vec.title || name,
     data:xs.map((x,i)=>({x,y:ys[i]})),
     borderColor:color,
     pointRadius:0,
