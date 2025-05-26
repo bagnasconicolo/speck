@@ -12,6 +12,7 @@
   #chips{flex:1;display:flex;flex-wrap:wrap;gap:6px}
   .chip{background:#444;border-radius:14px;padding:2px 10px;font-size:.8rem;cursor:pointer;transition:.2s}
   .chip:hover{background:#c0392b}
+  #ccdWrap canvas{width:100%!important;height:120px;margin-bottom:4px;border:1px solid #555}
   #chartWrap{position:absolute;top:56px;bottom:0;left:0;right:0;padding:10px}
   canvas{width:100%!important;height:100%!important}
 </style>
@@ -22,10 +23,17 @@
     <select id="picker" style="padding:4px 8px;background:#222;color:#ecf0f1;border:1px solid #555;">
       <option value="" disabled selected>— seleziona —</option>
     </select>
+
+    <button id="btnCCD"
+            style="padding:4px 10px;background:#1abc9c;border:none;border-radius:4px;color:#fff;font-weight:bold;cursor:pointer;">
+      Mostra&nbsp;CCD
+    </button>
+
     <div id="chips"></div>
   </div>
 
   <div id="chartWrap"><canvas id="cmpChart"></canvas></div>
+  <div id="ccdWrap" style="display:none;margin-top:6px;"></div>
 
 <script>
 // === CONFIG ===
@@ -35,6 +43,7 @@ const LIST_FILE = 'titoli.json';
 
 const colours=['#e74c3c','#3498db','#1abc9c','#f1c40f','#9b59b6','#e67e22','#2ecc71','#8e44ad'];
 let datasets=[];
+let ccdMode = false;
 const chart=new Chart(document.getElementById('cmpChart').getContext('2d'),{
   type:'line',
   data:{datasets},
@@ -96,13 +105,15 @@ function addDataset(name,vec){
   const wlKey = Object.keys(vec)[0];
   const yKey =Object.keys(vec)[1]||wlKey;
   const xs=vec[wlKey], ys=vec[yKey];
+  const vecObj = {xs, ys};
   const color=colours[datasets.length%colours.length];
   datasets.push({
     label: vec.title || name,
     data:xs.map((x,i)=>({x,y:ys[i]})),
     borderColor:color,
     pointRadius:0,
-    parsing:{xAxisKey:'x',yAxisKey:'y'}
+    parsing:{xAxisKey:'x',yAxisKey:'y'},
+    meta: vecObj            // <— aggiunto
   });
   chart.update();
   makeChip(name);
@@ -118,8 +129,47 @@ function makeChip(label){
     chart.data.datasets=datasets;
     chart.update();
     span.remove();
+    if(ccdMode) drawAllCCD();
   });
   chips.appendChild(span);
+}
+
+document.getElementById('btnCCD').addEventListener('click',()=>{
+  ccdMode = !ccdMode;
+  const wrap = document.getElementById('ccdWrap');
+  document.getElementById('btnCCD').textContent = ccdMode ? 'Nascondi CCD' : 'Mostra CCD';
+  wrap.style.display = ccdMode ? 'block' : 'none';
+  if(ccdMode) drawAllCCD();
+});
+
+function drawAllCCD(){
+  const wrap=document.getElementById('ccdWrap');
+  wrap.innerHTML='';
+  datasets.forEach(ds=>{
+    const {xs,ys}=ds.meta;
+    const maxY=Math.max(...ys);
+    const cv=document.createElement('canvas');
+    cv.width=xs.length; cv.height=120;
+    const ctx=cv.getContext('2d');
+    ys.forEach((v,i)=>{
+      const c=wavelengthToRGB(xs[i],v/maxY);
+      ctx.fillStyle=`rgb(${c.r},${c.g},${c.b})`;
+      ctx.fillRect(i,0,1,cv.height);
+    });
+    wrap.appendChild(cv);
+  });
+}
+
+function wavelengthToRGB(w,f=1){
+  let R=0,G=0,B=0;
+  if(w>=380&&w<440){R=-(w-440)/60;B=1;}
+  else if(w<490){G=(w-440)/50;B=1;}
+  else if(w<510){G=1;B=-(w-510)/20;}
+  else if(w<580){R=(w-510)/70;G=1;}
+  else if(w<645){R=1;G=-(w-645)/65;}
+  else if(w<=780){R=1;}
+  f=Math.sqrt(f);
+  return{r:Math.round(R*255*f),g:Math.round(G*255*f),b:Math.round(B*255*f)};
 }
 </script>
 </body>
