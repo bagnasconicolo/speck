@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>SPECK – Confronta Spettri</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0/dist/chartjs-plugin-zoom.umd.min.js"></script>
 <style>
   html,body{margin:0;height:100%;background:#111;color:#ecf0f1;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;}
   #topBar{display:flex;gap:18px;align-items:center;background:#000;padding:10px 20px;position:fixed;top:0;left:0;right:0;z-index:10}
@@ -24,6 +25,9 @@
     background:#c0392b;border:none;color:#fff;border-radius:4px;cursor:pointer;
   }
   canvas{width:100%!important;height:100%!important}
+  .ccdRow{position:relative;margin-bottom:12px}
+  .ccdRow span{position:absolute;left:8px;bottom:6px;font-size:.8rem;color:#fff;background:rgba(0,0,0,.6);padding:2px 6px;border-radius:4px;opacity:0;transition:.2s}
+  .ccdRow:hover span{opacity:1}
 </style>
 </head>
 <body>
@@ -80,10 +84,18 @@ function refreshColours(){
 const chart=new Chart(document.getElementById('cmpChart').getContext('2d'),{
   type:'line',
   data:{datasets},
-  options:{responsive:true,maintainAspectRatio:false,
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{
+      legend:{position:'bottom'},
+      zoom:{
+        pan:{enabled:true,mode:'xy'},
+        zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'xy'}
+      }
+    },
     scales:{x:{type:'linear',title:{display:true,text:'λ (nm)'}},
-            y:{title:{display:true,text:'Intensità (a.u.)'}}},
-    plugins:{legend:{position:'bottom'}}}
+            y:{title:{display:true,text:'Intensità (a.u.)'}}}
+  }
 });
 
 (async function loadList(){
@@ -178,7 +190,11 @@ function makeChip(label){
   colorInput.style.marginLeft='6px';
   colorInput.addEventListener('input',e=>{
      const ds=datasets.find(d=>d.label===label);
-     if(ds){ds.borderColor=e.target.value;chart.update();}
+     if(ds){
+        ds.baseColor=e.target.value;
+        refreshColours();
+        chart.update();
+     }
   });
   const alphaInput=document.createElement('input');
   alphaInput.type='range';
@@ -208,6 +224,8 @@ function drawAllCCD(){
   datasets.forEach(ds=>{
     const {xs,ys}=ds.meta;
     const maxY=Math.max(...ys);
+    const row=document.createElement('div');
+    row.className='ccdRow';
     const cv=document.createElement('canvas');
     cv.width=xs.length; cv.height=140;
     const ctx=cv.getContext('2d');
@@ -216,7 +234,11 @@ function drawAllCCD(){
       ctx.fillStyle=`rgb(${c.r},${c.g},${c.b})`;
       ctx.fillRect(i,0,1,cv.height);
     });
-    wrap.appendChild(cv);
+    const label=document.createElement('span');
+    label.textContent=ds.label;
+    row.appendChild(cv);
+    row.appendChild(label);
+    wrap.appendChild(row);
   });
 }
 
