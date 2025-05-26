@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SPECK – Confronta Spettri</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+<style>
+  html,body{margin:0;height:100%;background:#111;color:#ecf0f1;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;}
+  #topBar{display:flex;gap:18px;align-items:center;background:#000;padding:10px 20px;position:fixed;top:0;left:0;right:0;z-index:10}
+  #topBar label{cursor:pointer;font-weight:bold;color:#1abc9c}
+  #chips{flex:1;display:flex;flex-wrap:wrap;gap:6px}
+  .chip{background:#444;border-radius:14px;padding:2px 10px;font-size:.8rem;cursor:pointer;transition:.2s}
+  .chip:hover{background:#c0392b}
+  #chartWrap{position:absolute;top:56px;bottom:0;left:0;right:0;padding:10px}
+  canvas{width:100%!important;height:100%!important}
+</style>
+</head>
+<body>
+  <div id="topBar">
+    <input type="file" id="picker" multiple accept=".csv" style="display:none">
+    <label for="picker">Aggiungi CSV…</label>
+    <div id="chips"></div>
+  </div>
+
+  <div id="chartWrap"><canvas id="cmpChart"></canvas></div>
+
+<script>
+const colours=['#e74c3c','#3498db','#1abc9c','#f1c40f','#9b59b6','#e67e22','#2ecc71','#8e44ad'];
+let datasets=[];
+const chart=new Chart(document.getElementById('cmpChart').getContext('2d'),{
+  type:'line',
+  data:{datasets},
+  options:{responsive:true,maintainAspectRatio:false,
+    scales:{x:{type:'linear',title:{display:true,text:'λ (nm)'}},
+            y:{title:{display:true,text:'Intensità (a.u.)'}}},
+    plugins:{legend:{position:'bottom'}}}
+});
+
+document.getElementById('picker').addEventListener('change',async e=>{
+  for(const file of e.target.files){
+    const txt=await file.text();
+    const vec=parseCSV(txt);
+    if(!vec) continue;
+    addDataset(file.name,vec);
+  }
+  e.target.value='';
+});
+
+function parseCSV(text){
+  const lines=text.trim().split(/\\r?\\n/);
+  if(lines.length<2) return null;
+  const headers=lines[0].split(',').map(h=>h.trim());
+  const store=Object.fromEntries(headers.map(h=>[h,[]]));
+  for(let i=1;i<lines.length;i++){
+    const nums=lines[i].split(',').map(parseFloat);
+    nums.forEach((v,j)=>!isNaN(v)&&store[headers[j]].push(v));
+  }
+  return store;
+}
+
+function addDataset(name,vec){
+  const wlKey=Object.keys(vec)[0];
+  const yKey =Object.keys(vec)[1]||wlKey;
+  const xs=vec[wlKey], ys=vec[yKey];
+  const color=colours[datasets.length%colours.length];
+  datasets.push({
+    label:name,
+    data:xs.map((x,i)=>({x,y:ys[i]})),
+    borderColor:color,
+    pointRadius:0,
+    parsing:{xAxisKey:'x',yAxisKey:'y'}
+  });
+  chart.update();
+  makeChip(name);
+}
+
+function makeChip(label){
+  const chips=document.getElementById('chips');
+  const span=document.createElement('span');
+  span.className='chip';
+  span.textContent='× '+label;
+  span.addEventListener('click',()=>{
+    datasets=datasets.filter(d=>d.label!==label);
+    chart.data.datasets=datasets;
+    chart.update();
+    span.remove();
+  });
+  chips.appendChild(span);
+}
+</script>
+</body>
+</html>
