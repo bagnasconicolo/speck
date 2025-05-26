@@ -13,9 +13,16 @@
   .chip{background:#444;border-radius:14px;padding:2px 10px;font-size:.8rem;cursor:pointer;transition:.2s}
   .chip:hover{background:#c0392b}
   #ccdWrap canvas{width:100%!important;height:120px;margin-bottom:4px;border:1px solid #555}
-  #mainArea{position:absolute;top:56px;bottom:0;left:0;right:0;display:flex;flex-direction:column;overflow:hidden}
-  #chartWrap{flex:1 1 auto;padding:10px}
-  #ccdWrap{flex:0 0 auto;padding:0 10px 10px 10px;overflow-y:auto}
+  #chartWrap{position:absolute;top:56px;bottom:0;left:0;right:0;padding:10px}
+  #ccdOverlay{
+    position:fixed;top:56px;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,0.92);display:none;overflow-y:auto;padding:20px;
+  }
+  #ccdOverlay canvas{width:100%!important;height:140px;margin-bottom:10px;border:1px solid #555}
+  #closeCCD{
+    position:fixed;top:60px;right:20px;padding:4px 8px;font-size:18px;
+    background:#c0392b;border:none;color:#fff;border-radius:4px;cursor:pointer;
+  }
   canvas{width:100%!important;height:100%!important}
 </style>
 </head>
@@ -26,27 +33,30 @@
       <option value="" disabled selected>— seleziona —</option>
     </select>
 
+    <label style="color:#ccc;font-size:.85rem;">
+      <input type="checkbox" id="chkLogY">
+      Log&nbsp;Y
+    </label>
+
+    <button id="btnNorm"
+            style="padding:4px 10px;background:#3498db;border:none;border-radius:4px;color:#fff;font-weight:bold;cursor:pointer;">
+      Normalize
+    </button>
+
     <button id="btnCCD"
             style="padding:4px 10px;background:#1abc9c;border:none;border-radius:4px;color:#fff;font-weight:bold;cursor:pointer;">
       Mostra&nbsp;CCD
     </button>
 
-    <select id="selA" style="background:#222;color:#ecf0f1;border:1px solid #555;">
-      <option value="">Serie A</option>
-    </select>
-    <select id="selB" style="background:#222;color:#ecf0f1;border:1px solid #555;">
-      <option value="">Serie B</option>
-    </select>
-    <button id="btnSub" style="padding:4px 10px;background:#e67e22;border:none;border-radius:4px;color:#fff;font-weight:bold;cursor:pointer;">
-      A − B
-    </button>
-
     <div id="chips"></div>
-  </div>
+  </div><!-- end #topBar -->
 
-  <div id="mainArea">
-    <div id="chartWrap"><canvas id="cmpChart"></canvas></div>
-    <div id="ccdWrap" style="display:none;"></div>
+  <div id="chartWrap"><canvas id="cmpChart"></canvas></div>
+
+  <!-- Overlay for CCD images -->
+  <div id="ccdOverlay">
+    <button id="closeCCD">✕</button>
+    <div id="ccdInner"></div>
   </div>
 
 <script>
@@ -57,9 +67,15 @@ const LIST_FILE = 'titoli.json';
 
 const colours=['#e74c3c','#3498db','#1abc9c','#f1c40f','#9b59b6','#e67e22','#2ecc71','#8e44ad'];
 let datasets=[];
-let ccdMode = false;
-const selA=document.getElementById('selA');
-const selB=document.getElementById('selB');
+let logY=false, normalized=false;
+function hex2rgb(hex){hex=hex.replace('#','');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');const num=parseInt(hex,16);return[(num>>16)&255,(num>>8)&255,num&255];}
+function refreshColours(){
+  datasets.forEach(ds=>{
+    const [r,g,b]=hex2rgb(ds.baseColor||ds.borderColor);
+    const a=ds.opacity??1;
+    ds.borderColor=`rgba(${r},${g},${b},${a})`;
+  });
+}
 
 const chart=new Chart(document.getElementById('cmpChart').getContext('2d'),{
   type:'line',
@@ -95,20 +111,6 @@ function populatePicker(obj){
         });
 }
 
-function refreshSelects(){
-  [selA,selB].forEach(sel=>{
-    const current=sel.value;
-    sel.innerHTML='<option value="">'+(sel===selA?'Serie A':'Serie B')+'</option>';
-    datasets.forEach(d=>{
-      const opt=document.createElement('option');
-      opt.value=d.label;
-      opt.textContent=d.label;
-      sel.appendChild(opt);
-    });
-    if([...sel.options].some(o=>o.value===current)) sel.value=current;
-  });
-}
-
 document.getElementById('picker').addEventListener('change',async e=>{
   const file=e.target.value;
   if(!file) return;
@@ -139,18 +141,21 @@ function addDataset(name,vec){
   const xs=vec[wlKey], ys=vec[yKey];
   const vecObj = {xs, ys};
   const color=colours[datasets.length%colours.length];
+  const baseColor=color;
+  const opacity=1;
   datasets.push({
     label: vec.title || name,
     data:xs.map((x,i)=>({x,y:ys[i]})),
-    borderColor:color,
+    borderColor: `rgba(${parseInt(baseColor.slice(1,3),16)},${parseInt(baseColor.slice(3,5),16)},${parseInt(baseColor.slice(5,7),16)},${opacity})`,
+    baseColor: baseColor,
+    opacity: opacity,
     pointRadius:0,
     parsing:{xAxisKey:'x',yAxisKey:'y'},
     meta: vecObj            // <— aggiunto
   });
   chart.update();
   makeChip(name);
-  refreshSelects();
-  if(ccdMode) drawAllCCD();
+  refreshColours();
 }
 
 function makeChip(label){
@@ -164,8 +169,7 @@ function makeChip(label){
     chart.update();
     span.remove();
     colorInput.remove();
-    if(ccdMode) drawAllCCD();
-    refreshSelects();
+    alphaInput.remove();
   });
   const colorInput=document.createElement('input');
   colorInput.type='color';
@@ -176,27 +180,36 @@ function makeChip(label){
      const ds=datasets.find(d=>d.label===label);
      if(ds){ds.borderColor=e.target.value;chart.update();}
   });
+  const alphaInput=document.createElement('input');
+  alphaInput.type='range';
+  alphaInput.min='10';alphaInput.max='100';alphaInput.value='100';
+  alphaInput.style.width='70px';alphaInput.style.marginLeft='6px';
+  alphaInput.addEventListener('input',e=>{
+     const ds=datasets.find(d=>d.label===label);
+     if(ds){ ds.opacity=parseInt(e.target.value,10)/100; refreshColours(); chart.update(); }
+  });
   chips.appendChild(span);
   chips.appendChild(colorInput);
-  refreshSelects();
+  chips.appendChild(alphaInput);
 }
 
+const overlay=document.getElementById('ccdOverlay');
 document.getElementById('btnCCD').addEventListener('click',()=>{
-  ccdMode = !ccdMode;
-  const wrap = document.getElementById('ccdWrap');
-  document.getElementById('btnCCD').textContent = ccdMode ? 'Nascondi CCD' : 'Mostra CCD';
-  wrap.style.display = ccdMode ? 'block' : 'none';
-  if(ccdMode) drawAllCCD();
+  drawAllCCD();
+  overlay.style.display='block';
+});
+document.getElementById('closeCCD').addEventListener('click',()=>{
+  overlay.style.display='none';
 });
 
 function drawAllCCD(){
-  const wrap=document.getElementById('ccdWrap');
+  const wrap=document.getElementById('ccdInner');
   wrap.innerHTML='';
   datasets.forEach(ds=>{
     const {xs,ys}=ds.meta;
     const maxY=Math.max(...ys);
     const cv=document.createElement('canvas');
-    cv.width=xs.length; cv.height=120;
+    cv.width=xs.length; cv.height=140;
     const ctx=cv.getContext('2d');
     ys.forEach((v,i)=>{
       const c=wavelengthToRGB(xs[i],v/maxY);
@@ -219,18 +232,22 @@ function wavelengthToRGB(w,f=1){
   return{r:Math.round(R*255*f),g:Math.round(G*255*f),b:Math.round(B*255*f)};
 }
 
-document.getElementById('btnSub').addEventListener('click',()=>{
-  const a=selA.value, b=selB.value;
-  if(!a||!b||a===b) return;
-  const da=datasets.find(d=>d.label===a);
-  const db=datasets.find(d=>d.label===b);
-  if(!da||!db) return;
-  const xs=da.meta.xs;
-  if(xs.length!==db.meta.xs.length) { alert('Serie con lunghezze diverse'); return; }
-  const ys=xs.map((_,i)=>da.meta.ys[i]-db.meta.ys[i]);
-  const label=`${a} - ${b}`;
-  if(datasets.some(d=>d.label===label)) return;
-  addDataset(label,{0:xs,1:ys,title:label});
+document.getElementById('btnNorm').addEventListener('click',()=>{
+  normalized=!normalized;
+  document.getElementById('btnNorm').textContent = normalized? 'Denormalize':'Normalize';
+  datasets.forEach(ds=>{
+    const ysOrig=ds.meta.ys;
+    const max=Math.max(...ysOrig);
+    ds.data=ds.meta.xs.map((x,i)=>({x,y: normalized? ysOrig[i]/max : ysOrig[i]}));
+  });
+  chart.update();
+  drawAllCCD();
+});
+
+document.getElementById('chkLogY').addEventListener('change',e=>{
+  logY=e.target.checked;
+  chart.options.scales.y.type = logY ? 'logarithmic' : 'linear';
+  chart.update();
 });
 </script>
 </body>
