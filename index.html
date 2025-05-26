@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spectra LAB Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+  <style>
+    body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    #topMenu {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 42px;
+      background: #111;
+      color: #ecf0f1;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 0 20px;
+      box-sizing: border-box;
+      z-index: 1000;
+    }
+    #topMenu a {
+      color: #ecf0f1;
+      text-decoration: none;
+      font-weight: bold;
+      transition: color 0.25s;
+    }
+    #topMenu a:hover { color: #1abc9c; }
+    #siteTitle {
+      font-size: 18px;
+      line-height: 1.2;
+      margin: 0 0 15px;
+      text-align: center;
+      color: #ecf0f1;
+    }
+    #charmLogo {
+      display: block;
+      width: 90px;
+      margin: 4px auto 12px;
+    }
+    #sidebar { width: 260px; background: #000; color: #ecf0f1; padding: 20px; overflow-y: auto; box-sizing: border-box; margin-top: 42px; }
+    #sidebar h2 { margin-top: 0; }
+    #sidebar input { width: 100%; margin-bottom: 10px; }
+    #fileList { list-style: none; padding: 0; }
+    #fileList li { margin: 6px 0; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    #fileList li.active, #fileList li:hover { background: #34495e; }
+    #sidebar a { display: block; margin-top: 10px; color: #e67e22; text-decoration: none; }
+    #sidebar a:hover { text-decoration: underline; }
+    #content { flex: 1; background: #ecf0f1; padding: 20px; overflow-y: auto; box-sizing: border-box; margin-top: 42px; }
+    .logos {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    #partnerLogo {
+      width: 70px;
+    }
+    #title { margin-top: 0; }
+    .controls { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+    canvas { width: 100% !important; }
+    #specChart { height: 400px !important; }
+    #ccdCanvas { width: 100%; height: 200px; border: 1px solid #7f8c8d; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <!-- --- TOP NAVIGATION BAR ------------------------------------------------ -->
+  <nav id="topMenu">
+    <span style="display: flex; align-items: center; gap: 20px; width: 100%;">
+      <h1 id="siteTitle" style="margin: 0; font-size: 18px; line-height: 1; align-self: center;">SPECK&nbsp;– Libreria di Spettrometria</h1>
+      <div style="flex: 1;"></div>
+      <a href="gallery.html" target="_blank">Galleria&nbsp;CCD</a>
+      <a href="about.html">About</a>
+    </span>
+  </nav>
+  <div id="sidebar">
+    <div class="logos" style="flex-direction: row; align-items: center; justify-content: center; margin-bottom: 10px;">
+      <img id="charmLogo"   src="images/speck_logo.png" alt="SPECK Logo" style="margin-bottom: 0;">
+      <img id="partnerLogo" src="images/charm.png"      alt="Partner Logo">
+    </div>
+
+    
+
+    <h2>Spettri</h2>
+    <ul id="fileList"></ul>
+    <a href="gallery.html" target="_blank">Vai alla galleria CCD</a>
+  </div>
+  <div id="content">
+    <h2 id="title">Seleziona uno spettro</h2>
+    <div class="controls" id="seriesControls"></div>
+    <div class="controls">
+      <label for="threshSlider">Soglia (%)</label>
+      <input type="range" id="threshSlider" min="0" max="100" step="1" value="0">
+      <span id="threshValue">0</span>
+    </div>
+    <div class="chart-container"><canvas id="specChart"></canvas></div>
+    <h3>Simulazione CCD</h3>
+    <canvas id="ccdCanvas"></canvas>
+  </div>
+
+  <script>
+    let spectraData = {}, seriesData = {}, globalMax = 0, wlMin = 0, wlMax = 0, currentChart;
+    // === CONFIGURAZIONE =========================================================
+    const DATA_DIR  = 'csv_out';      // cartella con i CSV
+    const LIST_FILE = 'titoli.json';  // file JSON { "file.csv": "Titolo" }
+    // ============================================================================ 
+
+    // --- Carica automaticamente gli spettri dalla cartella "csv_out" -------------
+    document.addEventListener('DOMContentLoaded', loadSpeckData);
+
+    async function loadSpeckData() {
+      const listEl = document.getElementById('fileList');
+      listEl.innerHTML = '';
+      spectraData = {};
+
+      try {
+        // Tentativo primario: csv_out/titoli.json
+        const url = `${DATA_DIR}/${LIST_FILE}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`);
+        const data = await res.json();
+
+        populateList(data);
+      } catch (primaryErr) {
+        console.warn(`${LIST_FILE} non disponibile, provo list.json e poi directory listing…`, primaryErr);
+
+        try {
+          // Secondo tentativo: list.json
+          const res2 = await fetch(`${DATA_DIR}/list.json`);
+          if (res2.ok) {
+            const data2 = await res2.json();
+            populateList(data2);
+            return;
+          }
+        } catch (_) {
+          /* ignorato, si passa al terzo tentativo */
+        }
+
+        try {
+          // Terzo tentativo: listing della directory
+          const dirRes = await fetch(`${DATA_DIR}/`);
+          if (!dirRes.ok) throw new Error(`(${dirRes.status}) ${dirRes.statusText}`);
+          const html = await dirRes.text();
+
+          // Estrae tutti i link che terminano con .csv
+          const matches = [...html.matchAll(/href="([^"]+\.csv)"/gi)];
+          const files = matches.map(m => decodeURIComponent(m[1]));
+
+          if (!files.length) throw new Error('Nessun file .csv trovato nella directory.');
+
+          const data = files.map(f => [f, f]); // [filename, title] fallback
+          populateList(Object.fromEntries(data));
+        } catch (dirErr) {
+          console.error(dirErr);
+          alert(
+            'Errore nel caricare la lista degli spettri:\n' +
+            dirErr.message +
+            `\n\nVerifica che la cartella "${DATA_DIR}" sia accessibile e contenga file .csv.`
+          );
+        }
+      }
+    }
+
+    /**
+     * Inserisce gli elementi nel menu laterale.
+     * Accetta:
+     *   - Array   → ["file1.lab", "file2.lab"]
+     *   - Object  → { "file.lab": "Titolo", ... }
+     */
+    function populateList(data) {
+      const listEl = document.getElementById('fileList');
+      const entries = Array.isArray(data)
+        ? data.map(n => [n, n])
+        : Object.entries(data);
+
+      entries
+        .filter(([file]) => file.toLowerCase().endsWith('.csv'))
+        .forEach(([file, title]) => {
+          spectraData[file] = `${DATA_DIR}/${file}`;
+
+          const li = document.createElement('li');
+          li.textContent   = title || file;
+          li.dataset.file  = file;
+          li.dataset.title = title || file;
+          li.onclick       = () => loadSpectrum(file, li);
+          listEl.appendChild(li);
+        });
+    }
+    // -------------------------------------------------------------------------------
+
+
+    async function loadSpectrum(name, li) {
+      document.querySelectorAll('#fileList li').forEach(el => el.classList.remove('active'));
+      li.classList.add('active');
+      document.getElementById('title').textContent = li?.dataset?.title || name;
+      const text = typeof spectraData[name] === 'string'
+        ? await (await fetch(spectraData[name])).text()
+        : await spectraData[name].text();
+      // Legge file CSV invece di LAB
+      const vecs = parseCSV(text);
+      if (!vecs || !Object.keys(vecs).length) {
+        alert(`Il file "${name}" non contiene vettori di dati leggibili.`);
+        return;
+      }
+      const keys = Object.keys(vecs);
+      // Se non c'è alcun dato valido, esci
+      if (!keys.length) {
+        console.error('Nessun vettore trovato nel file:', name);
+        alert(`Il file "${name}" non sembra contenere dati validi.`);
+        return;
+      }
+
+      // Individua la chiave della lunghezza d'onda:
+      let wlKey = keys.find(k => {
+        const lk = k.toLowerCase();
+        return lk === 'λ' || lk === 'lambda' || lk.includes('lambda');
+      });
+
+      // Se non trovata, sceglie il primo vettore monotono crescente
+      if (!wlKey) {
+        wlKey = keys.find(k => {
+          const arr = vecs[k];
+          return Array.isArray(arr) && arr.length > 2 &&
+                 arr.every((v, i) => i === 0 || v >= arr[i - 1]);
+        }) || keys[0];
+      }
+
+      const wlRaw = vecs[wlKey];
+      if (!Array.isArray(wlRaw) || wlRaw.length === 0) {
+        console.error('Vettore lunghezze d’onda mancante o vuoto nel file:', name);
+        alert(`Il file "${name}" non contiene un vettore di lunghezze d'onda valido.`);
+        return;
+      }
+      const wl = wlRaw.map(Number).filter(v => !isNaN(v));
+      if (!wl.length) {
+        console.error('Tutti i valori di λ sono NaN per il file:', name);
+        alert(`Il vettore di lunghezze d'onda per "${name}" non contiene numeri validi.`);
+        return;
+      }
+      wlMin = Math.min(...wl.filter(v => v > 0));
+      wlMax = Math.max(...wl);
+      const yKeys = keys.filter(k => k !== wlKey);
+      if (!yKeys.length) {
+        alert(`Nel file "${name}" ho trovato solo il vettore λ e nessuna serie di intensità.`);
+        return;
+      }
+      seriesData = {};
+      globalMax = 0;
+      yKeys.forEach(k => {
+        const y = vecs[k];
+        if (!Array.isArray(y)) return;   // salta serie non valide
+        const points = wl.map((x, i) => ({ x, y: Number(y[i]) }))
+                         .filter(p => !isNaN(p.x) && !isNaN(p.y) && p.x > 0);
+        const xs = points.map(p => p.x);
+        const ys = points.map(p => p.y);
+        globalMax = Math.max(globalMax, ...ys);
+        seriesData[k] = { xs, ys };
+      });
+      setupControls(Object.keys(seriesData));
+      updateChart();
+    }
+    // Parser semplice per file CSV con colonne lambda, serie1, serie2, ...
+    function parseCSV(text) {
+      const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+      if (lines.length < 2) return {};
+      const headers = lines[0].split(',').map(h => h.trim());
+      const data = headers.reduce((obj, key) => { obj[key] = []; return obj; }, {});
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(s => s.trim());
+        values.forEach((val, idx) => {
+          const num = parseFloat(val);
+          if (!isNaN(num)) data[headers[idx]].push(num);
+        });
+      }
+      return data;
+    }
+
+    function setupControls(keys) {
+      const sc = document.getElementById('seriesControls'); sc.innerHTML = '';
+      keys.forEach((k, i) => {
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'chk_' + i; cb.value = k; cb.checked = true;
+        cb.onchange = updateChart;
+        const lbl = document.createElement('label'); lbl.htmlFor = cb.id; lbl.textContent = k;
+        sc.appendChild(cb); sc.appendChild(lbl);
+      });
+      document.getElementById('threshSlider').oninput = evt => {
+        document.getElementById('threshValue').textContent = evt.target.value;
+        updateChart();
+      };
+    }
+
+    function updateChart() {
+      const selected = Array.from(document.querySelectorAll('#seriesControls input:checked')).map(cb => cb.value);
+      const thrFrac = document.getElementById('threshSlider').value / 100;
+      const thr = thrFrac * globalMax;
+      const datasets = selected.map((k, idx) => {
+        const { xs, ys } = seriesData[k];
+        return {
+          label: k,
+          data: xs.map((x, i) => ({ x, y: ys[i] })),
+          borderColor: ['#e67e22', '#16a085', '#8e44ad', '#d35400', '#27ae60'][idx % 5],
+          pointRadius: 0,
+          parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+        };
+      });
+      datasets.push({
+        label: 'Soglia',
+        data: [{ x: wlMin, y: thr }, { x: wlMax, y: thr }],
+        type: 'line',
+        borderColor: '#000',
+        borderDash: [5, 5],
+        pointRadius: 0,
+        parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+      });
+      const ctx = document.getElementById('specChart').getContext('2d');
+      if (currentChart) currentChart.destroy();
+      currentChart = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { type: 'linear', min: wlMin, max: wlMax, title: { display: true, text: 'Lunghezza d’onda (nm)' } },
+            y: { title: { display: true, text: 'Intensità (a.u.)' } }
+          },
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+      drawCCD(thr);
+    }
+
+    function drawCCD(thr) {
+      const canvas = document.getElementById('ccdCanvas');
+      const ctx = canvas.getContext('2d');
+      const selected = Array.from(document.querySelectorAll('#seriesControls input:checked')).map(cb => cb.value);
+      if (!selected.length) return;
+      const xs = seriesData[selected[0]].xs;
+      const width = canvas.width = xs.length;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+      selected.forEach(k => {
+        const { xs, ys } = seriesData[k];
+        ys.forEach((val, i) => {
+          const color = (val < thr)
+            ? { r: 0, g: 0, b: 0 }
+            : wavelengthToRGB(xs[i], val / globalMax);
+          ctx.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
+          ctx.fillRect(i, 0, 1, height);
+        });
+      });
+    }
+
+    /**
+     * Parser robusto per file .lab (Visual‑Spec / SpectraLab).
+     * Restituisce un oggetto { nomeVettore: Array<number> } contenente
+     * solo vettori con almeno un valore numerico valido.
+     */
+    function parseLab(text) {
+      // Rimuove eventuali caratteri NULL (tipici dei file UTF‑16 letti come UTF‑8)
+      if (text.indexOf('\u0000') !== -1) {
+        text = text.replace(/\u0000/g, '');
+      }
+      const vecs = {};
+      let curName = null;
+      let buffer  = [];
+      let collecting = false;
+
+      const flush = () => {
+        if (curName && buffer.length) {
+          const arr = buffer.flatMap(line =>
+            line
+              .replace(/,/g, '.')        // virgola → punto
+              .trim()
+              .split(/\s+/)             // spazi o TAB
+              .map(Number)
+              .filter(v => !isNaN(v))
+          );
+          if (arr.length) vecs[curName] = arr;
+        }
+        buffer = [];
+        collecting = false;
+      };
+
+      text.split(/\r?\n/).forEach(raw => {
+        const line = raw.trim();
+        if (!line) return;
+
+        if (/^\[vecteur\]/i.test(line)) { flush(); curName = null; return; }
+
+        const m = line.match(/^(?:nom|name)\s*=\s*"?([^"]+)"?/i);
+        if (m) { curName = m[1].trim(); return; }
+
+        if (/^points\s*=\s*table/i.test(line) && curName) {
+          collecting = true;
+          buffer = [];
+          return;
+        }
+
+        if (collecting) {
+          if (line.startsWith('}')) flush();
+          else buffer.push(line);
+        }
+      });
+
+      flush();
+      return vecs;
+    }
+
+    function wavelengthToRGB(w, intensityFactor = 1) {
+      let R = 0, G = 0, B = 0;
+      if (w >= 380 && w < 440) { R = -(w - 440) / 60; B = 1; }
+      else if (w < 490) { G = (w - 440) / 50; B = 1; }
+      else if (w < 510) { G = 1; B = -(w - 510) / 20; }
+      else if (w < 580) { R = (w - 510) / 70; G = 1; }
+      else if (w < 645) { R = 1; G = -(w - 645) / 65; }
+      else if (w <= 780) { R = 1; }
+      const f = intensityFactor ** 0.5;
+      return { r: Math.round(R * 255 * f), g: Math.round(G * 255 * f), b: Math.round(B * 255 * f) };
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About – SPECK</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #111;
+      color: #ecf0f1;
+      line-height: 1.6;
+    }
+    header {
+      background: #000;
+      padding: 20px 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 {
+      font-size: 24px;
+      margin: 0;
+    }
+    nav a {
+      color: #ecf0f1;
+      text-decoration: none;
+      margin-left: 18px;
+      font-weight: bold;
+      transition: color 0.25s;
+    }
+    nav a:hover {
+      color: #1abc9c;
+    }
+    main {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    section {
+      margin-bottom: 40px;
+    }
+    h2 {
+      border-bottom: 2px solid #1abc9c;
+      padding-bottom: 6px;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.9rem;
+      color: #7f8c8d;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SPECK – Libreria di Spettrometria</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="gallery.html" target="_blank">Galleria CCD</a>
+    </nav>
+  </header>
+
+  <main>
+    <section>
+      <h2>Missione</h2>
+      <p>
+        <strong>SPECK</strong> nasce come piattaforma **open‑source** dedicata alla <em>didattica della spettrometria</em> nelle scuole secondarie e nei laboratori universitari. L’obiettivo è fornire a docenti e studenti uno strumento leggero, accessibile da browser e compatibile con gli spettrometri didattici più diffusi, senza rinunciare a funzioni avanzate tipiche dei software professionali.
+      </p>
+    </section>
+
+    <section>
+      <h2>Perché usarlo a scuola?</h2>
+      <ul>
+        <li>Si avvia in un click: basta un browser moderno, nessuna installazione.</li>
+        <li>Supporta i formati più comuni (<code>.lab</code>, <code>.csv</code>) dei kit didattici low‑cost.</li>
+        <li>Permette di visualizzare più spettri insieme e confrontarli in tempo reale.</li>
+        <li>La simulazione CCD a colori facilita la comprensione della corrispondenza λ → colore percepito.</li>
+        <li>Gli script Python consentono di preparare dataset e materiali di laboratorio in pochi secondi.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Funzionalità principali</h2>
+      <ul>
+        <li>Viewer interattivo di spettri (<code>.lab</code>, <code>.csv</code>) con soglia dinamica.</li>
+        <li>Simulazione CCD a colori basata su mappatura λ→RGB.</li>
+        <li>Galleria automatica con miniature colori/CCD.</li>
+        <li>Conversione batch <code>.lab → .csv + PDF</code> via script&nbsp;Python.</li>
+        <li>Supporto a serie multiple con selezione o rinomina interattiva.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Roadmap</h2>
+      <ul>
+        <li>Integrazione di linee di emissione note per il riconoscimento automatico.</li>
+        <li>Modalità dark/light configurabile.</li>
+        <li>Salvataggio preset utente in LocalStorage.</li>
+        <li>Export PNG del grafico e CSV filtrato direttamente dal browser.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Crediti &amp; Licenze</h2>
+      <p>
+        Progetto mantenuto da <a href="https://github.com/nicolo-bagnasco" target="_blank">Nicolò Bagnasco</a> e comunità CHARM.
+        Codice rilasciato sotto licenza MIT.
+      </p>
+      <p>
+        Frameworks e librerie di terze parti:
+      </p>
+      <ul>
+        <li>Chart.js – MIT License</li>
+        <li>Tailwind CSS (opzionale) – MIT License</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    © 2025 SPECK Project. Tutti i diritti riservati.
+  </footer>
+</body>
+</html>

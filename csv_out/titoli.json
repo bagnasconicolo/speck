@@ -1,0 +1,22 @@
+{
+  "UBEST.csv": "Fluorescenza Autunite",
+  "aurore.csv": "Aurore",
+  "bluelaser.csv": "Blue Laser",
+  "chinino.csv": "Fluorescenza Chinino",
+  "fluo-rosso-switch.csv": "Fluorescenza Rosso Switch",
+  "fluorescenza.csv": "Lampada a Fluorescenza",
+  "greenlaser.csv": "Green Laser",
+  "incand.csv": "Incandescenza",
+  "ledcaldo.csv": "LED Bianco Caldo",
+  "ledfreddissimo.csv": "LED Bianco Freddo",
+  "ledfreddo.csv": "LED Bianco Neutro",
+  "neon.csv": "Emissione Neon",
+  "redlaser.csv": "Red Laser",
+  "ruby.csv": "Fluorescenza Rubino",
+  "schermorgb.csv": "Schermo RGB",
+  "tesla.csv": "Aria ionizzata",
+  "uv_U_glass.csv": "Fluorescenza Vetro all'Uranio",
+  "uv_fluor.csv": "Lampada UV a Fluorescenza",
+  "uv_nails.csv": "LED UV 405 nm",
+  "zns.csv": "Fluorescenza Solfuro di Zinco"
+}

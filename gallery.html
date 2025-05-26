@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Galleria CCD</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #000;
+      color: #fff;
+    }
+    .back-btn {
+      display: inline-block;
+      background: #1abc9c;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    .back-btn:hover {
+      background: #16a085;
+    }
+    h1 { text-align: center; }
+    #galleryInput { margin-bottom: 20px; }
+    .grid {
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .item { width: 100%; }
+    .item {
+      position: relative;
+      cursor: pointer;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+    .item:hover {
+      transform: scale(1.015);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+    }
+    .caption {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 8px 6px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-weight: bold;
+      font-size: 0.95rem;
+      border-radius: 0 0 4px 4px;
+    }
+    .item:hover .caption {
+      opacity: 1;
+    }
+    .item img { width: 100%; height: auto; display: block; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1 style="color:#fff;text-align:center;">Galleria CCD</h1>
+  <p style="text-align:center;margin-top:-10px;">
+    <a href="index.html" class="back-btn">← Torna alla pagina degli spettri</a>
+  </p>
+  <p style="text-align:center;color:#ccc;">
+    <label>
+      <input type="checkbox" id="chkNormalize" checked>
+      Normalizza intensità
+    </label>
+  </p>
+  <div class="grid" id="gallery"></div>
+  <script>
+  // ==================== CONFIG =====================
+  const DATA_DIR  = 'csv_out';       // cartella dei CSV
+  const LIST_FILE = 'titoli.json';   // mapping { "file.csv": "Titolo" }
+  // =================================================
+
+  let normalize = true; // stato del checkbox
+  document.getElementById('chkNormalize').addEventListener('change', e => {
+    normalize = e.target.checked;
+    loadGallery();               // rigenera la galleria
+  });
+
+  document.addEventListener('DOMContentLoaded', loadGallery);
+
+  async function loadGallery() {
+    const gallery = document.getElementById('gallery');
+    gallery.innerHTML = '';
+
+    // --- Ottieni elenco titoli ---
+    let titleMap = {};
+    try {
+      const res = await fetch(`${DATA_DIR}/${LIST_FILE}`);
+      if (res.ok) titleMap = await res.json();
+    } catch (_) { /* ignorato */ }
+
+    // --- Ottieni lista CSV ---
+    let files = Object.keys(titleMap);
+
+    // Se titoli.json non ha chiavi, prova listing HTML
+    if (!files.length) {
+      try {
+        const dirRes = await fetch(`${DATA_DIR}/`);
+        const html   = await dirRes.text();
+        const matches = [...html.matchAll(/href="([^"]+\.csv)"/gi)];
+        files = matches.map(m => decodeURIComponent(m[1]));
+      } catch (err) {
+        console.error('Impossibile ottenere listing CSV', err);
+        return;
+      }
+    }
+
+    // Render di ciascun CSV
+    for (const file of files) {
+      try {
+        const csvText = await fetchText(`${DATA_DIR}/${file}`);
+        const { wl, y } = parseCSV(csvText);
+        if (!wl.length) continue;
+
+        const off = document.createElement('canvas');
+        off.width  = wl.length;
+        off.height = 200;
+        const ctx  = off.getContext('2d');
+        const maxY = normalize ? Math.max(...y) || 1 : 1;
+
+        wl.forEach((wv, i) => {
+          const val = y[i];
+          const norm = normalize ? val / maxY : Math.min(val, 1);
+          const color = wavelengthToRGB(wv, norm);
+          ctx.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
+          ctx.fillRect(i, 0, 1, off.height);
+        });
+
+        const img = new Image();
+        img.src = off.toDataURL();
+
+        const link = document.createElement('a');
+        link.href = `index.html?csv=${encodeURIComponent(file)}`;
+
+        const item = document.createElement('div');
+        item.className = 'item';
+        const caption = document.createElement('div');
+        caption.className = 'caption';
+        caption.textContent = titleMap[file] || file;
+
+        item.appendChild(img);
+        item.appendChild(caption);
+        link.appendChild(item);
+        gallery.appendChild(link);
+      } catch (err) {
+        console.error('Errore nel processare', file, err);
+      }
+    }
+  }
+
+  async function fetchText(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`(${res.status}) ${res.statusText}`);
+    return res.text();
+  }
+
+  function parseCSV(text) {
+    const lines   = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return { wl: [], y: [] };
+
+    const wl = [], y = [];
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(',');
+      wl.push(parseFloat(parts[0]));
+      y.push(parseFloat(parts[1]));
+    }
+    return { wl, y };
+  }
+
+  function wavelengthToRGB(w, intensityFactor = 1) {
+    let R = 0, G = 0, B = 0;
+    if (w >= 380 && w < 440) { R = -(w - 440) / 60; B = 1; }
+    else if (w < 490) { G = (w - 440) / 50; B = 1; }
+    else if (w < 510) { G = 1; B = -(w - 510) / 20; }
+    else if (w < 580) { R = (w - 510) / 70; G = 1; }
+    else if (w < 645) { R = 1; G = -(w - 645) / 65; }
+    else if (w <= 780) { R = 1; }
+    const f = Math.sqrt(intensityFactor); // gamma 0.5 (contrasto neutro)
+    return { r: Math.round(R * 255 * f), g: Math.round(G * 255 * f), b: Math.round(B * 255 * f) };
+  }
+  </script>
+</body>
+</html>

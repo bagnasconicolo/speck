@@ -1,0 +1,22 @@
+{
+"schermorgb.lab": "Schermo RGB",
+"UBEST.lab": "Fluorescenza Autunite",
+"ruby.lab": "Fluorescenza Rubino",
+"ledcaldo.lab": "LED Bianco Caldo",
+"ledfreddissimo.lab": "LED Bianco Freddo",
+"tesla.lab": "Aria ionizzata",
+"uv_nails.lab": "LED UV 405 nm",
+"incand.lab": "Incandescenza",
+"aurore.lab": "Aurore",
+"bluelaser.lab": "Blue Laser",
+"uv_U_glass.lab": "Fluorescenza Vetro all'Uranio",
+"chinino.lab": "Fluorescenza Chinino",
+"zns.lab": "Fluorescenza Solfuro di Zinco",
+"fluo-rosso-switch.lab": "Fluorescenza Rosso Switch",
+"redlaser.lab": "Red Laser",
+"uv_fluor.lab": "Lampada UV a Fluorescenza",
+"fluorescenza.lab": "Lampada a Fluorescenza",
+"greenlaser.lab": "Green Laser",
+"ledfreddo.lab": "LED Bianco Neutro",
+"neon.lab": "Emissione Neon"
+}
