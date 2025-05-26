@@ -13,7 +13,9 @@
   .chip{background:#444;border-radius:14px;padding:2px 10px;font-size:.8rem;cursor:pointer;transition:.2s}
   .chip:hover{background:#c0392b}
   #ccdWrap canvas{width:100%!important;height:120px;margin-bottom:4px;border:1px solid #555}
-  #chartWrap{position:absolute;top:56px;bottom:0;left:0;right:0;padding:10px}
+  #mainArea{position:absolute;top:56px;bottom:0;left:0;right:0;display:flex;flex-direction:column;overflow:hidden}
+  #chartWrap{flex:1 1 auto;padding:10px}
+  #ccdWrap{flex:0 0 auto;padding:0 10px 10px 10px;overflow-y:auto}
   canvas{width:100%!important;height:100%!important}
 </style>
 </head>
@@ -29,11 +31,23 @@
       Mostra&nbsp;CCD
     </button>
 
+    <select id="selA" style="background:#222;color:#ecf0f1;border:1px solid #555;">
+      <option value="">Serie A</option>
+    </select>
+    <select id="selB" style="background:#222;color:#ecf0f1;border:1px solid #555;">
+      <option value="">Serie B</option>
+    </select>
+    <button id="btnSub" style="padding:4px 10px;background:#e67e22;border:none;border-radius:4px;color:#fff;font-weight:bold;cursor:pointer;">
+      A − B
+    </button>
+
     <div id="chips"></div>
   </div>
 
-  <div id="chartWrap"><canvas id="cmpChart"></canvas></div>
-  <div id="ccdWrap" style="display:none;margin-top:6px;"></div>
+  <div id="mainArea">
+    <div id="chartWrap"><canvas id="cmpChart"></canvas></div>
+    <div id="ccdWrap" style="display:none;"></div>
+  </div>
 
 <script>
 // === CONFIG ===
@@ -44,6 +58,9 @@ const LIST_FILE = 'titoli.json';
 const colours=['#e74c3c','#3498db','#1abc9c','#f1c40f','#9b59b6','#e67e22','#2ecc71','#8e44ad'];
 let datasets=[];
 let ccdMode = false;
+const selA=document.getElementById('selA');
+const selB=document.getElementById('selB');
+
 const chart=new Chart(document.getElementById('cmpChart').getContext('2d'),{
   type:'line',
   data:{datasets},
@@ -78,6 +95,20 @@ function populatePicker(obj){
         });
 }
 
+function refreshSelects(){
+  [selA,selB].forEach(sel=>{
+    const current=sel.value;
+    sel.innerHTML='<option value="">'+(sel===selA?'Serie A':'Serie B')+'</option>';
+    datasets.forEach(d=>{
+      const opt=document.createElement('option');
+      opt.value=d.label;
+      opt.textContent=d.label;
+      sel.appendChild(opt);
+    });
+    if([...sel.options].some(o=>o.value===current)) sel.value=current;
+  });
+}
+
 document.getElementById('picker').addEventListener('change',async e=>{
   const file=e.target.value;
   if(!file) return;
@@ -102,8 +133,9 @@ function parseCSV(text){
 
 function addDataset(name,vec){
   if(!vec) return;
-  const wlKey = Object.keys(vec)[0];
-  const yKey =Object.keys(vec)[1]||wlKey;
+  const keys = Object.keys(vec);
+  const wlKey = keys[0];
+  const yKey  = keys[1] || wlKey;
   const xs=vec[wlKey], ys=vec[yKey];
   const vecObj = {xs, ys};
   const color=colours[datasets.length%colours.length];
@@ -117,6 +149,8 @@ function addDataset(name,vec){
   });
   chart.update();
   makeChip(name);
+  refreshSelects();
+  if(ccdMode) drawAllCCD();
 }
 
 function makeChip(label){
@@ -129,9 +163,22 @@ function makeChip(label){
     chart.data.datasets=datasets;
     chart.update();
     span.remove();
+    colorInput.remove();
     if(ccdMode) drawAllCCD();
+    refreshSelects();
+  });
+  const colorInput=document.createElement('input');
+  colorInput.type='color';
+  const ds=datasets.find(d=>d.label===label);
+  colorInput.value=ds?ds.borderColor:'#ffffff';
+  colorInput.style.marginLeft='6px';
+  colorInput.addEventListener('input',e=>{
+     const ds=datasets.find(d=>d.label===label);
+     if(ds){ds.borderColor=e.target.value;chart.update();}
   });
   chips.appendChild(span);
+  chips.appendChild(colorInput);
+  refreshSelects();
 }
 
 document.getElementById('btnCCD').addEventListener('click',()=>{
@@ -171,6 +218,20 @@ function wavelengthToRGB(w,f=1){
   f=Math.sqrt(f);
   return{r:Math.round(R*255*f),g:Math.round(G*255*f),b:Math.round(B*255*f)};
 }
+
+document.getElementById('btnSub').addEventListener('click',()=>{
+  const a=selA.value, b=selB.value;
+  if(!a||!b||a===b) return;
+  const da=datasets.find(d=>d.label===a);
+  const db=datasets.find(d=>d.label===b);
+  if(!da||!db) return;
+  const xs=da.meta.xs;
+  if(xs.length!==db.meta.xs.length) { alert('Serie con lunghezze diverse'); return; }
+  const ys=xs.map((_,i)=>da.meta.ys[i]-db.meta.ys[i]);
+  const label=`${a} - ${b}`;
+  if(datasets.some(d=>d.label===label)) return;
+  addDataset(label,{0:xs,1:ys,title:label});
+});
 </script>
 </body>
 </html>
