@@ -9,6 +9,8 @@
 <style>
   html,body{margin:0;height:100%;background:#111;color:#ecf0f1;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;}
   #topBar{display:flex;gap:18px;align-items:center;background:#000;padding:10px 20px;position:fixed;top:0;left:0;right:0;z-index:10}
+  #toolOverlay input[type=number]{background:#222;color:#ecf0f1;border:1px solid #555}
+  #toolOverlay input[type=range]{vertical-align:middle}
   #topBar label{cursor:pointer;font-weight:bold;color:#1abc9c}
   #chips{flex:1;display:flex;flex-wrap:wrap;gap:6px}
   .chip{background:#444;border-radius:14px;padding:2px 10px;font-size:.8rem;cursor:pointer;transition:.2s}
@@ -52,6 +54,11 @@
       Mostra&nbsp;CCD
     </button>
 
+    <button id="btnTools"
+            style="padding:4px 10px;background:#9b59b6;border:none;border-radius:4px;color:#fff;font-weight:bold;cursor:pointer;">
+      Tools
+    </button>
+
     <div id="chips"></div>
   </div><!-- end #topBar -->
 
@@ -61,6 +68,43 @@
   <div id="ccdOverlay">
     <button id="closeCCD">✕</button>
     <div id="ccdInner"></div>
+  </div>
+
+  <!-- Overlay for analysis tools -->
+  <div id="toolOverlay" style="display:none;position:fixed;top:56px;left:0;right:0;bottom:0;background:rgba(0,0,0,.94);color:#ecf0f1;z-index:20;padding:20px;overflow-y:auto;">
+    <button id="closeTools" style="position:absolute;top:20px;right:30px;padding:4px 8px;font-size:18px;background:#c0392b;border:none;color:#fff;border-radius:4px;cursor:pointer;">✕</button>
+    <h2>Strumenti di elaborazione</h2>
+
+    <!-- Serie target -->
+    <p>
+      <label>Serie:&nbsp;
+        <select id="toolSeries"></select>
+      </label>
+    </p>
+
+    <!-- Wavelength shift -->
+    <fieldset style="border:1px solid #555;padding:10px;margin-bottom:12px;">
+      <legend>Spostamento dell'asse λ (nm)</legend>
+      <input type="range" id="shiftSlider" min="-50" max="50" step="0.1" value="0" style="width:60%">
+      <input type="number" id="shiftSpin"  min="-50" max="50" step="0.1" value="0" style="width:70px">
+      <button id="applyShift" style="margin-left:12px;">Applica</button>
+    </fieldset>
+
+    <!-- Gaussian smearing -->
+    <fieldset style="border:1px solid #555;padding:10px;margin-bottom:12px;">
+      <legend>Gaussian smearing (σ nm)</legend>
+      <input type="range" id="sigmaSlider" min="0" max="10" step="0.1" value="0" style="width:60%">
+      <input type="number" id="sigmaSpin"  min="0" max="10" step="0.1" value="0" style="width:70px">
+      <button id="applySmear" style="margin-left:12px;">Applica</button>
+    </fieldset>
+
+    <!-- Peak finder -->
+    <fieldset style="border:1px solid #555;padding:10px;">
+      <legend>Peak finder</legend>
+      <label>Soglia (% del max): <input type="number" id="peakThresh" min="1" max="100" value="10" style="width:60px"></label>
+      <button id="runPeaks" style="margin-left:12px;">Trova picchi</button>
+      <div id="peakList" style="margin-top:10px;font-size:.9rem;"></div>
+    </fieldset>
   </div>
 
 <script>
@@ -168,6 +212,7 @@ function addDataset(name,vec){
   chart.update();
   makeChip(name);
   refreshColours();
+  populateToolSeries();
 }
 
 function makeChip(label){
@@ -182,6 +227,7 @@ function makeChip(label){
     span.remove();
     colorInput.remove();
     alphaInput.remove();
+    populateToolSeries();
   });
   const colorInput=document.createElement('input');
   colorInput.type='color';
@@ -271,6 +317,87 @@ document.getElementById('chkLogY').addEventListener('change',e=>{
   chart.options.scales.y.type = logY ? 'logarithmic' : 'linear';
   chart.update();
 });
+/* ---------- TOOL OVERLAY ---------- */
+const toolOverlay=document.getElementById('toolOverlay');
+const toolSeries=document.getElementById('toolSeries');
+
+document.getElementById('btnTools').onclick=()=>{
+  populateToolSeries();
+  toolOverlay.style.display='block';
+};
+document.getElementById('closeTools').onclick=()=>toolOverlay.style.display='none';
+
+function populateToolSeries(){
+  toolSeries.innerHTML='';
+  datasets.forEach(ds=>{
+    const opt=document.createElement('option');
+    opt.value=ds.label;opt.textContent=ds.label;toolSeries.appendChild(opt);
+  });
+}
+
+/* --- Wavelength shift --- */
+const shiftSlider=document.getElementById('shiftSlider');
+const shiftSpin  =document.getElementById('shiftSpin');
+shiftSlider.oninput=e=>shiftSpin.value=e.target.value;
+shiftSpin.oninput=e=>shiftSlider.value=e.target.value;
+
+document.getElementById('applyShift').onclick=()=>{
+  const label=toolSeries.value; if(!label) return;
+  const ds=datasets.find(d=>d.label===label); if(!ds) return;
+  const delta=parseFloat(shiftSpin.value)||0;
+  ds.meta.xs=ds.meta.xs.map(x=>x+delta);
+  ds.data   =ds.meta.xs.map((x,i)=>({x,y:ds.meta.ys[i]}));
+  chart.update(); drawAllCCD();
+};
+
+/* --- Gaussian smearing (very naive) --- */
+function gaussianBlur(arr,sigma){
+  if(sigma<=0) return arr.slice();
+  const sigma2=2*sigma*sigma; const kernelSize=Math.ceil(sigma*3);
+  const out=new Array(arr.length).fill(0);
+  for(let i=0;i<arr.length;i++){
+    let sum=0, norm=0;
+    for(let k=-kernelSize;k<=kernelSize;k++){
+      const j=i+k; if(j<0||j>=arr.length) continue;
+      const w=Math.exp(-(k*k)/sigma2);
+      sum+=arr[j]*w; norm+=w;
+    }
+    out[i]=sum/norm;
+  }
+  return out;
+}
+
+const sigmaSlider=document.getElementById('sigmaSlider');
+const sigmaSpin  =document.getElementById('sigmaSpin');
+sigmaSlider.oninput=e=>sigmaSpin.value=e.target.value;
+sigmaSpin.oninput=e=>sigmaSlider.value=e.target.value;
+
+document.getElementById('applySmear').onclick=()=>{
+  const label=toolSeries.value; if(!label) return;
+  const ds=datasets.find(d=>d.label===label); if(!ds) return;
+  const sigma=parseFloat(sigmaSpin.value)||0;
+  ds.meta.ys=gaussianBlur(ds.meta.ys,sigma);
+  const factor= normalized? Math.max(...ds.meta.ys):1;
+  ds.data=ds.meta.xs.map((x,i)=>({x,y: normalized? ds.meta.ys[i]/factor: ds.meta.ys[i]}));
+  chart.update(); drawAllCCD();
+};
+
+/* --- Peak finder --- */
+document.getElementById('runPeaks').onclick=()=>{
+  const label=toolSeries.value; if(!label) return;
+  const ds=datasets.find(d=>d.label===label); if(!ds) return;
+  const thrPerc=parseFloat(document.getElementById('peakThresh').value)||10;
+  const maxY=Math.max(...ds.meta.ys);
+  let peaks=[];
+  ds.meta.ys.forEach((v,i)=>{
+    if(v>maxY*thrPerc/100){
+      const prev=ds.meta.ys[i-1]||0, next=ds.meta.ys[i+1]||0;
+      if(v>=prev && v>=next) peaks.push([ds.meta.xs[i],v]);
+    }
+  });
+  const list=document.getElementById('peakList');
+  list.innerHTML=peaks.length? '<strong>Picchi:</strong><br>'+peaks.map(p=>p[0].toFixed(1)+' nm ( '+p[1].toFixed(0)+' )').join('<br>'):'<em>nessun picco sopra soglia</em>';
+};
 </script>
 </body>
 </html>
