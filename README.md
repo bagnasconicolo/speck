@@ -1,14 +1,14 @@
 # speck
 
-A Python project for spectral data visualization using PyQt5, matplotlib, numpy, scipy, and pillow.
+A Python project for spectral data visualization using PyQt5, Matplotlib, NumPy, SciPy, and Pillow.
 
 ## Requirements
 - Python 3.x
-- pyqt5
-- matplotlib
-- numpy
-- scipy
-- pillow
+- PyQt5
+- Matplotlib
+- NumPy
+- SciPy
+- Pillow
 
 ## Installation
 Install the required packages:
