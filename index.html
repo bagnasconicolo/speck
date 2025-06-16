@@ -177,6 +177,11 @@
 
       entries
         .filter(([file]) => file.toLowerCase().endsWith('.csv'))
+        .sort((a, b) => {
+          const t1 = a[1] || a[0];
+          const t2 = b[1] || b[0];
+          return t1.localeCompare(t2, undefined, { sensitivity: 'base' });
+        })
         .forEach(([file, title]) => {
           spectraData[file] = `${DATA_DIR}/${file}`;
 
