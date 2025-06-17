@@ -6,6 +6,7 @@
 <title>SPECK – Confronta Spettri</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0/dist/chartjs-plugin-zoom.umd.min.js"></script>
+<script>Chart.register(window["chartjs-plugin-zoom"]);</script>
 <style>
   html,body{margin:0;height:100%;background:#111;color:#ecf0f1;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;}
   #topBar{display:flex;gap:18px;align-items:center;background:linear-gradient(90deg,#232526,#414345);padding:12px 24px;position:fixed;top:0;left:0;right:0;z-index:10;box-shadow:0 2px 6px rgba(0,0,0,0.6)}
@@ -139,7 +140,9 @@ const crosshair={
   afterEvent(chart,evt){
     const type=evt.event.type;
     if(type==='mousemove'){
+
       cursor.x=evt.event.offsetX; cursor.y=evt.event.offsetY;
+
       chart.draw();
     }else if(type==='mouseout'||type==='mouseleave'){
       cursor.x=null; cursor.y=null; document.getElementById('cursorData').textContent='';

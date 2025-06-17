@@ -66,6 +66,7 @@
     .controls { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
     canvas { width: 100% !important; }
     #specChart { height: 400px !important; border-radius: 4px; }
+    #zoomControls button { padding: 2px 8px; }
     #ccdCanvas { width: 100%; height: 200px; border: 1px solid #7f8c8d; margin-top: 5px; border-radius: 4px; }
   </style>
 </head>
@@ -101,6 +102,11 @@
       <span id="threshValue">0</span>
     </div>
     <div class="chart-container"><canvas id="specChart"></canvas></div>
+    <div class="controls" id="zoomControls">
+      <button id="zoomIn">Zoom +</button>
+      <button id="zoomOut">Zoom -</button>
+      <button id="resetZoom">Reset</button>
+    </div>
     <h3>Simulazione CCD</h3>
     <canvas id="ccdCanvas"></canvas>
   </div>
@@ -436,6 +442,9 @@
       const f = intensityFactor ** 0.5;
       return { r: Math.round(R * 255 * f), g: Math.round(G * 255 * f), b: Math.round(B * 255 * f) };
     }
+    document.getElementById("zoomIn").onclick = () => currentChart?.zoom(1.2);
+    document.getElementById("zoomOut").onclick = () => currentChart?.zoom(0.8);
+    document.getElementById("resetZoom").onclick = () => currentChart?.resetZoom();
   </script>
 </body>
 </html>
