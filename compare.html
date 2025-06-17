@@ -140,7 +140,9 @@ const crosshair={
   afterEvent(chart,evt){
     const type=evt.event.type;
     if(type==='mousemove'){
-      cursor.x=evt.event.x; cursor.y=evt.event.y;
+
+      cursor.x=evt.event.offsetX; cursor.y=evt.event.offsetY;
+
       chart.draw();
     }else if(type==='mouseout'||type==='mouseleave'){
       cursor.x=null; cursor.y=null; document.getElementById('cursorData').textContent='';
