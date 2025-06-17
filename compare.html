@@ -19,6 +19,7 @@
   button:hover{transform:scale(1.05)}
   #ccdWrap canvas{width:100%!important;height:120px;margin-bottom:4px;border:1px solid #555}
   #chartWrap{position:absolute;top:56px;bottom:0;left:0;right:0;padding:10px;background:#181818;border-top:1px solid #444}
+  #chartWrap canvas{cursor:crosshair}
   #cursorData{position:absolute;top:8px;right:12px;color:#fff;background:rgba(0,0,0,0.6);padding:2px 6px;border-radius:4px;font-size:.85rem;pointer-events:none}
   #ccdOverlay{
     position:fixed;top:56px;left:0;right:0;bottom:0;
@@ -128,6 +129,7 @@ function refreshColours(){
     const [r,g,b]=hex2rgb(ds.baseColor||ds.borderColor);
     const a=ds.opacity??1;
     ds.borderColor=`rgba(${r},${g},${b},${a})`;
+    ds.backgroundColor=`rgba(${r},${g},${b},0.1)`;
   });
 }
 
@@ -138,7 +140,7 @@ const crosshair={
     const type=evt.event.type;
     if(type==='mousemove'){
       cursor.x=evt.event.x; cursor.y=evt.event.y;
-    }else if(type==='mouseout'){
+    }else if(type==='mouseout'||type==='mouseleave'){
       cursor.x=null; cursor.y=null; document.getElementById('cursorData').textContent='';
     }
   },
@@ -146,7 +148,8 @@ const crosshair={
     if(cursor.x===null) return;
     const {ctx,chartArea:{top,bottom,left,right}}=chart;
     ctx.save();
-    ctx.strokeStyle='rgba(255,255,255,0.6)';
+    ctx.strokeStyle='rgba(255,255,255,0.7)';
+    ctx.lineWidth=1;
     ctx.setLineDash([4,4]);
     ctx.beginPath();
     ctx.moveTo(cursor.x, top); ctx.lineTo(cursor.x, bottom);
@@ -239,6 +242,8 @@ function addDataset(name,vec){
     label: vec.title || name,
     data:xs.map((x,i)=>({x,y:ys[i]})),
     borderColor: `rgba(${parseInt(baseColor.slice(1,3),16)},${parseInt(baseColor.slice(3,5),16)},${parseInt(baseColor.slice(5,7),16)},${opacity})`,
+    backgroundColor:`rgba(${parseInt(baseColor.slice(1,3),16)},${parseInt(baseColor.slice(3,5),16)},${parseInt(baseColor.slice(5,7),16)},0.1)`,
+    borderWidth:2,
     baseColor: baseColor,
     opacity: opacity,
     pointRadius:0,
@@ -268,7 +273,7 @@ function makeChip(label){
   const colorInput=document.createElement('input');
   colorInput.type='color';
   const ds=datasets.find(d=>d.label===label);
-  colorInput.value=ds?ds.borderColor:'#ffffff';
+  colorInput.value=ds?ds.baseColor:'#ffffff';
   colorInput.style.marginLeft='6px';
   colorInput.addEventListener('input',e=>{
      const ds=datasets.find(d=>d.label===label);
