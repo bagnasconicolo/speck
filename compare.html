@@ -158,7 +158,11 @@ const crosshair={
     ctx.restore();
     const xVal=chart.scales.x.getValueForPixel(cursor.x);
     const yVal=chart.scales.y.getValueForPixel(cursor.y);
-    document.getElementById('cursorData').textContent=`λ ${xVal.toFixed(1)} nm | ${yVal.toFixed(2)}`;
+    const info=document.getElementById('cursorData');
+    if(Number.isFinite(xVal) && Number.isFinite(yVal))
+      info.textContent=`λ ${xVal.toFixed(1)} nm | ${yVal.toFixed(2)}`;
+    else
+      info.textContent='';
   }
 };
 Chart.register(crosshair);
@@ -189,7 +193,11 @@ canvas.addEventListener('mousemove',evt=>{
   chart.draw();
   const xVal=chart.scales.x.getValueForPixel(cursor.x);
   const yVal=chart.scales.y.getValueForPixel(cursor.y);
-  document.getElementById('cursorData').textContent=`λ ${xVal.toFixed(1)} nm | ${yVal.toFixed(2)}`;
+  const info=document.getElementById('cursorData');
+  if(Number.isFinite(xVal) && Number.isFinite(yVal))
+    info.textContent=`λ ${xVal.toFixed(1)} nm | ${yVal.toFixed(2)}`;
+  else
+    info.textContent='';
 });
 canvas.addEventListener('mouseleave',()=>{
   cursor.x=null; cursor.y=null;
