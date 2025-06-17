@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spectra LAB Viewer</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0/dist/chartjs-plugin-zoom.umd.min.js"></script>
+  <script>
+    Chart.register(window['chartjs-plugin-zoom']);
+  </script>
   <style>
     body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     #topMenu {
@@ -62,6 +66,7 @@
     .controls { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
     canvas { width: 100% !important; }
     #specChart { height: 400px !important; border-radius: 4px; }
+    #zoomControls button { padding: 2px 8px; }
     #ccdCanvas { width: 100%; height: 200px; border: 1px solid #7f8c8d; margin-top: 5px; border-radius: 4px; }
   </style>
 </head>
@@ -97,6 +102,11 @@
       <span id="threshValue">0</span>
     </div>
     <div class="chart-container"><canvas id="specChart"></canvas></div>
+    <div class="controls" id="zoomControls">
+      <button id="zoomIn">Zoom +</button>
+      <button id="zoomOut">Zoom -</button>
+      <button id="resetZoom">Reset</button>
+    </div>
     <h3>Simulazione CCD</h3>
     <canvas id="ccdCanvas"></canvas>
   </div>
@@ -332,7 +342,13 @@
             x: { type: 'linear', min: wlMin, max: wlMax, title: { display: true, text: 'Lunghezza d’onda (nm)' } },
             y: { title: { display: true, text: 'Intensità (a.u.)' } }
           },
-          plugins: { legend: { position: 'bottom' } }
+          plugins: {
+            legend: { position: 'bottom' },
+            zoom: {
+              pan: { enabled: true, mode: 'xy' },
+              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' }
+            }
+          }
         }
       });
       drawCCD(thr);
@@ -426,6 +442,9 @@
       const f = intensityFactor ** 0.5;
       return { r: Math.round(R * 255 * f), g: Math.round(G * 255 * f), b: Math.round(B * 255 * f) };
     }
+    document.getElementById("zoomIn").onclick = () => currentChart?.zoom(1.2);
+    document.getElementById("zoomOut").onclick = () => currentChart?.zoom(0.8);
+    document.getElementById("resetZoom").onclick = () => currentChart?.resetZoom();
   </script>
 </body>
 </html>
