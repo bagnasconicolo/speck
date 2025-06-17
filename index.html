@@ -5,10 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spectra LAB Viewer</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0/dist/chartjs-plugin-zoom.umd.min.js"></script>
-  <script>
-    Chart.register(window['chartjs-plugin-zoom']);
-  </script>
   <style>
     body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     #topMenu {
@@ -66,7 +62,6 @@
     .controls { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
     canvas { width: 100% !important; }
     #specChart { height: 400px !important; border-radius: 4px; }
-    #zoomControls button { padding: 2px 8px; }
     #ccdCanvas { width: 100%; height: 200px; border: 1px solid #7f8c8d; margin-top: 5px; border-radius: 4px; }
   </style>
 </head>
@@ -101,12 +96,12 @@
       <input type="range" id="threshSlider" min="0" max="100" step="1" value="0">
       <span id="threshValue">0</span>
     </div>
-    <div class="chart-container"><canvas id="specChart"></canvas></div>
-    <div class="controls" id="zoomControls">
-      <button id="zoomIn">Zoom +</button>
-      <button id="zoomOut">Zoom -</button>
-      <button id="resetZoom">Reset</button>
+    <div class="controls">
+      <label for="widthSlider">Spessore (px)</label>
+      <input type="range" id="widthSlider" min="1" max="5" step="1" value="2">
+      <span id="widthValue">2</span>
     </div>
+    <div class="chart-container"><canvas id="specChart"></canvas></div>
     <h3>Simulazione CCD</h3>
     <canvas id="ccdCanvas"></canvas>
   </div>
@@ -305,18 +300,24 @@
         document.getElementById('threshValue').textContent = evt.target.value;
         updateChart();
       };
+      document.getElementById('widthSlider').oninput = evt => {
+        document.getElementById('widthValue').textContent = evt.target.value;
+        updateChart();
+      };
     }
 
     function updateChart() {
       const selected = Array.from(document.querySelectorAll('#seriesControls input:checked')).map(cb => cb.value);
       const thrFrac = document.getElementById('threshSlider').value / 100;
       const thr = thrFrac * globalMax;
+      const lineW = Number(document.getElementById('widthSlider').value);
       const datasets = selected.map((k, idx) => {
         const { xs, ys } = seriesData[k];
         return {
           label: k,
           data: xs.map((x, i) => ({ x, y: ys[i] })),
           borderColor: ['#e67e22', '#16a085', '#8e44ad', '#d35400', '#27ae60'][idx % 5],
+          borderWidth: lineW,
           pointRadius: 0,
           parsing: { xAxisKey: 'x', yAxisKey: 'y' }
         };
@@ -327,6 +328,7 @@
         type: 'line',
         borderColor: '#000',
         borderDash: [5, 5],
+        borderWidth: lineW,
         pointRadius: 0,
         parsing: { xAxisKey: 'x', yAxisKey: 'y' }
       });
@@ -342,13 +344,7 @@
             x: { type: 'linear', min: wlMin, max: wlMax, title: { display: true, text: 'Lunghezza d’onda (nm)' } },
             y: { title: { display: true, text: 'Intensità (a.u.)' } }
           },
-          plugins: {
-            legend: { position: 'bottom' },
-            zoom: {
-              pan: { enabled: true, mode: 'xy' },
-              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' }
-            }
-          }
+          plugins: { legend: { position: 'bottom' } }
         }
       });
       drawCCD(thr);
@@ -442,9 +438,6 @@
       const f = intensityFactor ** 0.5;
       return { r: Math.round(R * 255 * f), g: Math.round(G * 255 * f), b: Math.round(B * 255 * f) };
     }
-    document.getElementById("zoomIn").onclick = () => currentChart?.zoom(1.2);
-    document.getElementById("zoomOut").onclick = () => currentChart?.zoom(0.8);
-    document.getElementById("resetZoom").onclick = () => currentChart?.resetZoom();
   </script>
 </body>
 </html>
