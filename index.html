@@ -59,7 +59,12 @@
       width: 70px;
     }
     #title { margin-top: 0; }
-    .controls { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+    .controls { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .sliderRow { display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
+    .slider { flex: 1; display: flex; gap: 8px; align-items: center; background: #fff; padding: 6px 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .slider label { white-space: nowrap; }
+    .slider span { min-width: 24px; text-align: center; font-weight: bold; }
+    .slider input[type=range] { flex: 1; }
     canvas { width: 100% !important; }
     #specChart { height: 400px !important; border-radius: 4px; }
     #ccdCanvas { width: 100%; height: 200px; border: 1px solid #7f8c8d; margin-top: 5px; border-radius: 4px; }
@@ -91,15 +96,17 @@
   <div id="content">
     <h2 id="title">Seleziona uno spettro</h2>
     <div class="controls" id="seriesControls"></div>
-    <div class="controls">
-      <label for="threshSlider">Soglia (%)</label>
-      <input type="range" id="threshSlider" min="0" max="100" step="1" value="0">
-      <span id="threshValue">0</span>
-    </div>
-    <div class="controls">
-      <label for="widthSlider">Spessore (px)</label>
-      <input type="range" id="widthSlider" min="1" max="5" step="1" value="2">
-      <span id="widthValue">2</span>
+    <div class="sliderRow">
+      <div class="slider">
+        <label for="threshSlider">Soglia (%)</label>
+        <input type="range" id="threshSlider" min="0" max="100" step="1" value="0">
+        <span id="threshValue">0</span>
+      </div>
+      <div class="slider">
+        <label for="widthSlider">Spessore (px)</label>
+        <input type="range" id="widthSlider" min="1" max="5" step="1" value="2">
+        <span id="widthValue">2</span>
+      </div>
     </div>
     <div class="chart-container"><canvas id="specChart"></canvas></div>
     <h3>Simulazione CCD</h3>
