@@ -5,10 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spectra LAB Viewer</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.0/dist/chartjs-plugin-zoom.umd.min.js"></script>
-  <script>
-    Chart.register(window['chartjs-plugin-zoom']);
-  </script>
   <style>
     body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     #topMenu {
@@ -336,13 +332,7 @@
             x: { type: 'linear', min: wlMin, max: wlMax, title: { display: true, text: 'Lunghezza d’onda (nm)' } },
             y: { title: { display: true, text: 'Intensità (a.u.)' } }
           },
-          plugins: {
-            legend: { position: 'bottom' },
-            zoom: {
-              pan: { enabled: true, mode: 'xy' },
-              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' }
-            }
-          }
+          plugins: { legend: { position: 'bottom' } }
         }
       });
       drawCCD(thr);
